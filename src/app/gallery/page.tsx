@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 interface Photo {
   id: string;
   caption: string | null;
-  data: string;      // base64
+  url: string;      // Cloudinary URL
   width: number;
   height: number;
 }
@@ -26,7 +26,7 @@ export default function GalleryPage() {
       {photos.map((p) => (
         <Image
           key={p.id}
-          src={`data:image/png;base64,${p.data}`}
+          src={p.url}
           alt={p.caption ?? 'photo'}
           width={p.width || 300}     // กันพลาดถ้าบางรูปไม่มี meta
           height={p.height || 300}
