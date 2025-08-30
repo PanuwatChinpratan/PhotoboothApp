@@ -45,8 +45,10 @@ export default function Photobooth() {
     const data = canvas.toDataURL('image/png').split(',')[1];
     await fetch('/api/photos', {
       method: 'POST',
+        credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+           
         image: data,
         meta: { width: canvas.width, height: canvas.height },
       }),

@@ -3,6 +3,12 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/prisma";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
+
+const credSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -13,29 +19,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-        if (!credentials?.email || !credentials.password) return null;
+        const parsed = credSchema.safeParse(credentials);
+        if (!parsed.success) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+        const { email, password } = parsed.data;
 
-        if (!user) return null;
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user?.passwordHash) return null;
 
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.passwordHash,
-        );
+        const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) return null;
 
         return {
           id: String(user.id),
           email: user.email,
           name: user.name ?? undefined,
+          image: user.image ?? undefined,
         };
       },
     }),
   ],
-  session: { strategy: "database" },
+  session: { strategy: "jwt" },
   secret: process.env.AUTH_SECRET,
   trustHost: true,
 });

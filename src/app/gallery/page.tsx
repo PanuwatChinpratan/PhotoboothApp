@@ -1,8 +1,15 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
-interface Photo { id: number; caption: string | null; data: string; }
+interface Photo {
+  id: string;
+  caption: string | null;
+  data: string;      // base64
+  width: number;
+  height: number;
+}
 
 export default function GalleryPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -10,20 +17,22 @@ export default function GalleryPage() {
   useEffect(() => {
     fetch('/api/photos')
       .then((res) => res.json())
-      .then((d) => {
-        setPhotos(
-          d.photos.map((p: any) => ({
-            ...p,
-            data: btoa(String.fromCharCode(...p.data.data)),
-          })),
-        );
-      });
+      .then((d) => setPhotos(d.photos as Photo[]))
+      .catch(console.error);
   }, []);
 
   return (
     <main className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
       {photos.map((p) => (
-        <img key={p.id} src={`data:image/png;base64,${p.data}`} className="rounded" />
+        <Image
+          key={p.id}
+          src={`data:image/png;base64,${p.data}`}
+          alt={p.caption ?? 'photo'}
+          width={p.width || 300}     // กันพลาดถ้าบางรูปไม่มี meta
+          height={p.height || 300}
+           unoptimized
+          className="rounded object-cover"
+        />
       ))}
     </main>
   );
