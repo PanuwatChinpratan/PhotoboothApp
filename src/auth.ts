@@ -3,39 +3,39 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/prisma";
 import bcrypt from "bcryptjs";
-import { registerSchema } from "@/lib/validators";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
-      Credentials({
-      // You can specify which fields should be submitted, by adding keys to the `credentials` object.
-      // e.g. domain, username, password, 2FA token, etc.
+    Credentials({
       credentials: {
-        email: {},
-        password: {},
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-        let user = null
- 
-        // logic to salt and hash password
-        const pwHash = saltAndHashPassword(credentials.password)
- 
-        // logic to verify if the user exists
-        user = await getUserFromDb(credentials.email, pwHash)
- 
-        if (!user) {
-          // No user found, so this is their first attempt to login
-          // Optionally, this is also the place you could do a user registration
-          throw new Error("Invalid credentials.")
-        }
- 
-        // return user object with their profile data
-        return user
+        if (!credentials?.email || !credentials.password) return null;
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (!user) return null;
+
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.passwordHash,
+        );
+        if (!isValid) return null;
+
+        return {
+          id: String(user.id),
+          email: user.email,
+          name: user.name ?? undefined,
+        };
       },
     }),
   ],
   session: { strategy: "database" },
-  secret: process.env.AUTH_SECRET ,
+  secret: process.env.AUTH_SECRET,
   trustHost: true,
 });
