@@ -40,8 +40,8 @@ useEffect(() => {
           alt={p.caption ?? 'photo'}
           width={p.width || 300}     
           height={p.height || 300}
-          priority={false}
-          loading="lazy"
+          priority
+         
           className="rounded object-cover"
         />
       ))}
