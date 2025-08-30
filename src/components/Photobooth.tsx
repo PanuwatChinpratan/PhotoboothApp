@@ -22,6 +22,10 @@ export default function Photobooth() {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
     }
+    return () => {
+      stream?.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    };
   }, [stream]);
 
   const capture = () => {
@@ -37,6 +41,8 @@ export default function Photobooth() {
     ctx.drawImage(video, -canvas.width / 2, -canvas.height / 2);
     ctx.restore();
     drawWithWatermark(ctx);
+    stream?.getTracks().forEach((track) => track.stop());
+    setStream(null);
     setCaptured(true);
   };
 
