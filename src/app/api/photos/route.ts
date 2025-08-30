@@ -3,28 +3,28 @@ import { prisma } from "@/prisma";
 import { auth } from "@/auth";
 import { photoCreateSchema } from "@/lib/validators";
 import { rateLimit } from "@/lib/rateLimit";
+import { createHash } from "node:crypto";
 
-// GET: คืนรูปเป็น base64 string + width/height
+// GET: คืนรูปเป็น URL ของ Cloudinary + width/height
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const cursor = url.searchParams.get("cursor");
   const take = 12;
 
-  const photos = await prisma.photo.findMany({
+  const photos = (await prisma.photo.findMany({
     orderBy: { createdAt: "desc" },
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-  });
+  })) as any[];
 
   const hasMore = photos.length > take;
   if (hasMore) photos.pop();
   const nextCursor = hasMore ? photos[photos.length - 1]?.id : undefined;
 
-  // ✅ แปลง Bytes/Buffer → base64 ก่อนส่ง
   const safe = photos.map((p) => ({
     id: p.id,
     caption: p.caption,
-    data: Buffer.from(p.data as unknown as Uint8Array).toString("base64"),
+    url: p.url,
     width: p.width,
     height: p.height,
     createdAt: p.createdAt,
@@ -58,25 +58,53 @@ export async function POST(req: Request) {
   }
 
   const { image, caption, meta } = parsed.data;
-  const buffer = Buffer.from(image, "base64");
+  const cloudinaryUrl = process.env.CLOUDINARY_URL;
+  if (!cloudinaryUrl) {
+    return NextResponse.json(
+      { error: "Missing Cloudinary configuration" },
+      { status: 500 }
+    );
+  }
+  const creds = new URL(cloudinaryUrl);
+  const cloudName = creds.hostname;
+  const apiKey = creds.username;
+  const apiSecret = creds.password;
+  const timestamp = Math.round(Date.now() / 1000);
+  const signature = createHash("sha1")
+    .update(`timestamp=${timestamp}${apiSecret}`)
+    .digest("hex");
 
-  const created = await prisma.photo.create({
+  const form = new FormData();
+  form.append("file", `data:image/png;base64,${image}`);
+  form.append("api_key", apiKey);
+  form.append("timestamp", String(timestamp));
+  form.append("signature", signature);
+
+  const upload = (await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+    {
+      method: "POST",
+      body: form,
+    }
+  ).then((r) => r.json())) as any;
+
+  const created = (await prisma.photo.create({
     data: {
       caption: caption ?? null,
-      data: buffer,
+      url: upload.secure_url ?? upload.url,
       width: meta?.width ?? 0,
       height: meta?.height ?? 0,
       meta: meta ?? undefined,
       // ✅ connect ด้วย email (unique)
       user: { connect: { email: session.user.email } },
-    },
-  });
+    } as any,
+  })) as any;
 
   return NextResponse.json(
     {
       id: created.id,
       caption: created.caption,
-      data: Buffer.from(created.data as unknown as Uint8Array).toString("base64"),
+      url: created.url,
       width: created.width,
       height: created.height,
       createdAt: created.createdAt,
