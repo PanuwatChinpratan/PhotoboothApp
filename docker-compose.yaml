@@ -1,0 +1,21 @@
+version: '3.9'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: file:./dev.db
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: photobooth
+      POSTGRES_PASSWORD: photobooth
+      POSTGRES_DB: photobooth
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
