@@ -1,7 +1,22 @@
-FROM node:20-alpine
+FROM node:20
+
+# ตั้ง working dir
 WORKDIR /app
-COPY package.json pnpm-lock.yaml package-lock.json* ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+
+# ก็อป package.json เพื่อติดตั้ง deps
+COPY package*.json ./
+
+# ติดตั้ง deps (รวม dev deps)
+RUN npm install
+
+# ก๊อปทั้งหมด (จะถูก override ด้วย volume ใน dev)
 COPY . .
-RUN pnpm build
-CMD ["pnpm", "start"]
+
+# รัน Prisma generate เพื่อใช้งาน
+RUN npx prisma generate
+
+# Expose port dev
+EXPOSE 3000
+
+# รัน dev server
+CMD ["npm", "run", "dev"]

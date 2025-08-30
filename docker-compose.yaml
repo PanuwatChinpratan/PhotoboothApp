@@ -1,21 +1,15 @@
-version: '3.9'
+version: "3.9"  # ใช้ compose schema เวอร์ชันล่าสุด
+
 services:
-  app:
-    build: .
+  web:  # ชื่อ container (service name)
+    container_name: photobooth
+    build:
+      context: .             # โฟลเดอร์ที่ใช้ build (ปกติคือ root project)
+      dockerfile: Dockerfile.dev  # ใช้ Dockerfile.dev สร้าง image
     ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: file:./dev.db
-  postgres:
-    image: postgres:16
-    restart: always
-    environment:
-      POSTGRES_USER: photobooth
-      POSTGRES_PASSWORD: photobooth
-      POSTGRES_DB: photobooth
-    ports:
-      - "5432:5432"
+      - "3000:3000"          # map port จากเครื่อง → container
     volumes:
-      - pgdata:/var/lib/postgresql/data
-volumes:
-  pgdata:
+      - .:/app               # sync โค้ดจากเครื่องเข้า container (hot reload)
+      - /app/node_modules    # ป้องกันไม่ให้ node_modules ทับจากเครื่อง
+    env_file:
+      - .env.local           # โหลด ENV variable ใช้งานตอน dev (เช่น DATABASE_URL)

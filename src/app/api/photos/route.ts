@@ -7,31 +7,36 @@ import { createHash } from "node:crypto";
 
 // GET: คืนรูปเป็น URL ของ Cloudinary + width/height
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const cursor = url.searchParams.get("cursor");
-  const take = 12;
+  try {
+    const url = new URL(req.url);
+    const cursor = url.searchParams.get("cursor") ?? undefined;
+    const take = 12;
 
-  const photos = (await prisma.photo.findMany({
-    orderBy: { createdAt: "desc" },
-    take: take + 1,
-    where: { url: { not: null } },
-    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-  })) as any[];
+    const photos = await prisma.photo.findMany({
+      // แนะนำใส่ secondary orderBy ด้วย id ให้ pagination เสถียร
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: take + 1,
+      where: { url: { not: null } },            // ✅ ใช้ not:null
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select: {
+        id: true,
+        caption: true,
+        url: true,
+        width: true,
+        height: true,
+        createdAt: true,
+      },
+    });
 
-  const hasMore = photos.length > take;
-  if (hasMore) photos.pop();
-  const nextCursor = hasMore ? photos[photos.length - 1]?.id : undefined;
+    const hasMore = photos.length > take;
+    const pageItems = hasMore ? photos.slice(0, take) : photos;
+    const nextCursor = hasMore ? pageItems[pageItems.length - 1]?.id : undefined;
 
-  const safe = photos.map((p) => ({
-    id: p.id,
-    caption: p.caption,
-    url: p.url,
-    width: p.width,
-    height: p.height,
-    createdAt: p.createdAt,
-  }));
-
-  return NextResponse.json({ photos: safe, nextCursor });
+    return NextResponse.json({ photos: pageItems, nextCursor }, { status: 200 });
+  } catch (err) {
+    console.error("[GET /api/photos] error:", err);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }
 
 // POST: ผูกผู้ใช้ด้วย email (ไม่ต้องอาศัย session.user.id)

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { drawWithWatermark } from '@/lib/watermark';
+import { useEffect, useRef, useState } from "react";
+import { drawWithWatermark } from "@/lib/watermark";
 
 export default function Photobooth() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -12,7 +12,10 @@ export default function Photobooth() {
   const [captured, setCaptured] = useState(false);
 
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true }).then(setStream).catch(console.error);
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then(setStream)
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -26,7 +29,7 @@ export default function Photobooth() {
     const canvas = canvasRef.current!;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext("2d")!;
     ctx.filter = `brightness(${100 + brightness}%)`;
     ctx.save();
     ctx.translate(canvas.width / 2, canvas.height / 2);
@@ -42,13 +45,12 @@ export default function Photobooth() {
 
   const save = async () => {
     const canvas = canvasRef.current!;
-    const data = canvas.toDataURL('image/png').split(',')[1];
-    await fetch('/api/photos', {
-      method: 'POST',
-        credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+    const data = canvas.toDataURL("image/png").split(",")[1];
+    await fetch("/api/photos", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-           
         image: data,
         meta: { width: canvas.width, height: canvas.height },
       }),
