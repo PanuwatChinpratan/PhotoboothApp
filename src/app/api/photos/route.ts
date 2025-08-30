@@ -14,6 +14,7 @@ export async function GET(req: Request) {
   const photos = (await prisma.photo.findMany({
     orderBy: { createdAt: "desc" },
     take: take + 1,
+    where: { url: { not: null } },
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   })) as any[];
 
