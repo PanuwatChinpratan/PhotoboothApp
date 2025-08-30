@@ -7,6 +7,11 @@ import { createHash } from "node:crypto";
 
 // GET: คืนรูปเป็น URL ของ Cloudinary + width/height
 export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id && !session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const url = new URL(req.url);
     const cursor = url.searchParams.get("cursor") ?? undefined;
@@ -16,7 +21,15 @@ export async function GET(req: Request) {
       // แนะนำใส่ secondary orderBy ด้วย id ให้ pagination เสถียร
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: take + 1,
-      where: { url: { not: null } },            // ✅ ใช้ not:null
+      where: {
+        url: { not: null },
+        OR: [
+          ...(session.user?.id ? [{ userId: session.user.id }] : []),
+          ...(session.user?.email
+            ? [{ user: { email: session.user.email } }]
+            : []),
+        ],
+      },
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: {
         id: true,
