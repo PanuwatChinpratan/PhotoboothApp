@@ -86,7 +86,7 @@ model Photo {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String   @db.ObjectId
   caption   String?
-  data      Bytes
+  url       String
   width     Int
   height    Int
   meta      Json?
