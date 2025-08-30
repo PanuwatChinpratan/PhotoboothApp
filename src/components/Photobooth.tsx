@@ -11,22 +11,70 @@ export default function Photobooth() {
   const [brightness, setBrightness] = useState(0);
   const [captured, setCaptured] = useState(false);
 
+  // เปิดกล้องตอนเข้า + ปิดกล้องตอนออกจากหน้า
   useEffect(() => {
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then(setStream)
-      .catch(console.error);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (cancelled) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        setStream(s);
+        if (videoRef.current) {
+          videoRef.current.srcObject = s;
+          await videoRef.current.play?.().catch(() => {});
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      const v = videoRef.current;
+      const s = (v?.srcObject as MediaStream | null) ?? stream;
+      s?.getTracks().forEach((t) => t.stop());
+      if (v) {
+        v.pause?.();
+        
+        v.srcObject = null;
+      }
+    };
+    // อย่าใส่ dependency อื่น เพื่อไม่ให้เปิดกล้องซ้ำ
   }, []);
 
+  // หลัง Save แล้ว setCaptured(false) → ให้พยายามเล่นวิดีโออีกครั้ง
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    if (!captured) {
+      const v = videoRef.current;
+      if (!v) return;
+
+      let s = (v.srcObject as MediaStream | null) ?? stream;
+      const dead =
+        !s || s.getVideoTracks().every((t) => t.readyState === "ended");
+
+      if (dead) {
+        // เผื่อบางกรณี (เช่น iOS/แท็บพัก) track สิ้นสุด ให้เปิดใหม่
+        navigator.mediaDevices
+          .getUserMedia({ video: true })
+          .then(async (ns) => {
+            setStream(ns);
+            if (videoRef.current) {
+              videoRef.current.srcObject = ns;
+              await videoRef.current.play?.().catch(() => {});
+            }
+          })
+          .catch(console.error);
+      } else {
+        // มี stream อยู่แล้ว แค่ ensure เล่นต่อ
+        v.srcObject = s;
+        v.play?.().catch(() => {});
+      }
     }
-    return () => {
-      stream?.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    };
-  }, [stream]);
+  }, [captured, stream]);
 
   const capture = () => {
     const video = videoRef.current!;
@@ -41,12 +89,10 @@ export default function Photobooth() {
     ctx.drawImage(video, -canvas.width / 2, -canvas.height / 2);
     ctx.restore();
     drawWithWatermark(ctx);
-    stream?.getTracks().forEach((track) => track.stop());
-    setStream(null);
-    setCaptured(true);
+    setCaptured(true); // ซ่อนวิดีโอชั่วคราวเพื่อแสดงภาพที่ถ่าย
   };
 
-  const rotateLeft = () => setRotation((r) => (r - 90) % 360);
+  const rotateLeft = () => setRotation((r) => (r - 90 + 360) % 360);
   const rotateRight = () => setRotation((r) => (r + 90) % 360);
 
   const save = async () => {
@@ -61,12 +107,21 @@ export default function Photobooth() {
         meta: { width: canvas.width, height: canvas.height },
       }),
     });
+    // กลับสู่โหมดกล้อง → useEffect(captured) จะทำงานและเล่นวิดีโอให้
     setCaptured(false);
   };
 
   return (
     <div className="space-y-4">
-      {!captured && <video ref={videoRef} autoPlay className="rounded" />}
+      {!captured && (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="rounded"
+        />
+      )}
       <canvas ref={canvasRef} className="rounded" />
       <div className="flex items-center gap-2">
         <button onClick={rotateLeft}>⟲</button>
