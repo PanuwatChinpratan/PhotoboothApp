@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PhotoboothApp (Evaluation Only)
+
+> **Demo only** – not for commercial use. All images are watermarked "EVALUATION • NOT FOR COMMERCIAL USE".
+
+## Features
+
+- Camera capture via `getUserMedia`
+- Rotate and brightness adjustments with watermark
+- Credentials auth powered by NextAuth and Prisma (SQLite)
+- Gallery with pagination
+- REST API with Zod validation and per‑IP rate limiting
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+pnpm db:push && pnpm db:seed
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+docker compose up --build
+```
 
-## Learn More
+## Scope & Limitations
 
-To learn more about Next.js, take a look at the following resources:
+- Email verification and password reset are mocked.
+- Single user seed: `demo@example.com` / `password123`.
+- Images stored in SQLite; no external storage.
+- Tests cover utilities and basic flow; camera mocked in e2e.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Next Steps
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Timed capture bursts and additional filters
+- Albums and sharing
+- Argon2 hashing, CSRF protection
+- APM, metrics, and stronger rate limiting
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [LICENSE](./LICENSE). Evaluation only.
