@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RotateCcw, RotateCw, Save, Sun } from "lucide-react";
-
+import { toast } from "sonner";
 interface ShotEditorProps {
   shot: ImageBitmap | null;
   onRetake: () => void;
@@ -51,11 +51,14 @@ export default function ShotEditor({ shot, onRetake }: ShotEditorProps) {
   const rotateLeft = () => setRotation((r) => (r - 90 + 360) % 360);
   const rotateRight = () => setRotation((r) => (r + 90) % 360);
 
-  const save = async () => {
-    if (!canvasRef.current || !shot) return;
-    const canvas = canvasRef.current;
-    const data = canvas.toDataURL("image/png").split(",")[1];
-    await fetch("/api/photos", {
+const save = async () => {
+  if (!canvasRef.current || !shot) return;
+
+  const canvas = canvasRef.current;
+  const data = canvas.toDataURL("image/png").split(",")[1];
+
+  try {
+    const res = await fetch("/api/photos", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -69,11 +72,25 @@ export default function ShotEditor({ shot, onRetake }: ShotEditorProps) {
         },
       }),
     });
+
+    if (!res.ok) {
+      // ถ้า API error
+      const text = await res.text();
+      throw new Error(`Upload failed: ${res.status} ${text}`);
+    }
+
+    // ✅ สำเร็จ
     onRetake();
     setRotation(0);
     setBrightness(0);
     canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
-  };
+  } catch (err) {
+    console.error("Save failed:", err);
+   
+    toast.error("บันทึกรูปไม่สำเร็จ กรุณา login");
+  }
+};
+
 
   const retake = () => {
     onRetake();
