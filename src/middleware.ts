@@ -1,3 +1,4 @@
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -9,17 +10,10 @@ export function middleware(req: NextRequest) {
   if (session?.value) return NextResponse.next();
 
   const url = req.nextUrl.clone();
-  url.pathname = "/";
+  url.pathname = "/";                        // กลับหน้า Home
+  url.searchParams.set("flash", "login-required"); 
 
-  const res = NextResponse.redirect(url); // 307 by default
-  res.cookies.set("flash-photobooth", "login-required-photobooth", {
-    path: "/",
-    maxAge: 60,
-    sameSite: "lax",
-    secure: true,
-    httpOnly: false,
-  });
-  return res;
+  return NextResponse.redirect(url); 
 }
 
 export const config = { matcher: ["/gallery/:path*"] };
