@@ -17,11 +17,11 @@ function clearCookie(name: string) {
 export default function FlashToast() {
   useEffect(() => {
     const v = readCookie("flash-photobooth");
-    if (v === "login-required") {
+    if (v === "login-required-photobooth") {
       console.log("flash-photobooth", v);
-      
-      toast.error("กรุณาเข้าสู่ระบบก่อนใช้งาน");
-      clearCookie("flash");
+      alert("กรุณาเข้าสู่ระบบก่อนใช้งาน");
+      // toast.error("กรุณาเข้าสู่ระบบก่อนใช้งาน");
+      clearCookie("flash-photobooth");
     }
   }, []);
   return null;

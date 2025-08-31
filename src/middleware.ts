@@ -12,8 +12,7 @@ export function middleware(req: NextRequest) {
   url.pathname = "/";
 
   const res = NextResponse.redirect(url); // 307 by default
-  // 👇 flash cookie (NOT HttpOnly so client can read; short-lived; single-shot UX)
-  res.cookies.set("flash-photobooth", "login-required", {
+  res.cookies.set("flash-photobooth", "login-required-photobooth", {
     path: "/",
     maxAge: 60,
     sameSite: "lax",
