@@ -4,14 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { drawWithWatermark } from "@/lib/watermark";
 import { usePathname } from "next/navigation";
 import {
-  Card, CardContent, CardFooter, CardHeader, CardTitle,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Camera, Save, RotateCcw, RotateCw, Sun } from "lucide-react";
@@ -23,32 +30,53 @@ export default function Photobooth() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [stream, setStream] = useState<MediaStream | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   // ค่าปรับแต่งของ "รูปที่ถ่าย"
   const [rotation, setRotation] = useState(0); // 0,90,180,270
   const [brightness, setBrightness] = useState(0); // -50..50
   const [shot, setShot] = useState<ImageBitmap | null>(null);
+  // 1) เพิ่ม ref ไว้เก็บ stream ปัจจุบัน
+  const streamRef = useRef<MediaStream | null>(null);
 
   // ---------- helper: ปิดกล้องให้สะอาด ----------
   const stopCamera = () => {
+    const s = streamRef.current;
     try {
-      console.log("Camera stopped:", stream?.getTracks().map(t => t.readyState));
-
-      // หยุดทุก track
-      stream?.getTracks().forEach((t) => t.stop());
-      // ล้าง srcObject + pause
+      s?.getTracks().forEach((t) => t.stop());
       const v = videoRef.current;
       if (v) {
         v.pause?.();
-      console.log("Camera stopped:", stream?.getTracks().map(t => t.readyState));
-
         v.srcObject = null;
       }
-    } catch (e) {
-      console.warn("stopCamera error:", e);
     } finally {
+      streamRef.current = null;
       setStream(null);
+    }
+  };
+  const openCamera = async () => {
+    if (streamRef.current) return; // เปิดอยู่แล้ว
+    if (!navigator.mediaDevices?.getUserMedia) {
+      console.warn("Camera API not available");
+      return;
+    }
+    try {
+      setLoading(true);
+      const s = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = s;
+      setStream(s);
+      const v = videoRef.current;
+      if (v) {
+        v.srcObject = s;
+        try {
+          await v.play?.();
+        } catch {}
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -60,16 +88,23 @@ export default function Photobooth() {
       try {
         setLoading(true);
         const s = await navigator.mediaDevices.getUserMedia({ video: true });
+
         if (cancelled) {
+          // ถ้า unmount ไปแล้ว ก็หยุดทันที
           s.getTracks().forEach((t) => t.stop());
           return;
         }
+
+        // เก็บไว้ทั้ง ref และ state
+        streamRef.current = s;
         setStream(s);
+
         const v = videoRef.current;
         if (v) {
-        
           v.srcObject = s;
-          await v.play?.().catch(() => {});
+          try {
+            await v.play?.();
+          } catch {}
         }
       } catch (e) {
         console.error(e);
@@ -78,12 +113,22 @@ export default function Photobooth() {
       }
     })();
 
-    // ปิดกล้องตอน unmount (กรณีมีจริง)
+    // cleanup: ปิดกล้องตอน unmount/เปลี่ยนหน้า
     return () => {
       cancelled = true;
-      stopCamera();
+
+      const s = streamRef.current;
+      if (s) s.getTracks().forEach((t) => t.stop());
+
+      const v = videoRef.current;
+      if (v) {
+        v.pause?.();
+        v.srcObject = null;
+      }
+
+      streamRef.current = null;
+      setStream(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---------- ปิดกล้องทันทีเมื่อออกจาก /photobooth ----------
@@ -153,7 +198,12 @@ export default function Photobooth() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image: data,
-        meta: { width: canvas.width, height: canvas.height, rotation, brightness },
+        meta: {
+          width: canvas.width,
+          height: canvas.height,
+          rotation,
+          brightness,
+        },
       }),
     });
     setShot(null);
@@ -175,7 +225,10 @@ export default function Photobooth() {
           </CardHeader>
           <CardContent>
             <div className="rounded-2xl border bg-muted/30 p-2">
-              <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-xl">
+              <AspectRatio
+                ratio={16 / 9}
+                className="overflow-hidden rounded-xl"
+              >
                 <div className="relative h-full w-full">
                   {loading && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center">
@@ -193,7 +246,16 @@ export default function Photobooth() {
               </AspectRatio>
             </div>
           </CardContent>
+
           <CardFooter className="flex flex-wrap items-center gap-3">
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={openCamera}
+              disabled={!!stream || loading}
+            >
+              Open Camera
+            </Button>
             <Button size="lg" onClick={capture} disabled={loading || !stream}>
               <Camera className="mr-2 h-5 w-5" />
               Capture
@@ -208,8 +270,14 @@ export default function Photobooth() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="rounded-2xl border bg-muted/30 p-2">
-              <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-xl">
-                <canvas ref={canvasRef} className="h-full w-full object-contain" />
+              <AspectRatio
+                ratio={16 / 9}
+                className="overflow-hidden rounded-xl"
+              >
+                <canvas
+                  ref={canvasRef}
+                  className="h-full w-full object-contain"
+                />
               </AspectRatio>
             </div>
 
@@ -220,16 +288,28 @@ export default function Photobooth() {
                 <div className="flex items-center gap-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" onClick={rotateLeft} disabled={!shot}>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={rotateLeft}
+                        disabled={!shot}
+                      >
                         <RotateCcw className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Rotate -90°</TooltipContent>
                   </Tooltip>
-                  <span className="w-14 text-right text-sm tabular-nums">{rotation}°</span>
+                  <span className="w-14 text-right text-sm tabular-nums">
+                    {rotation}°
+                  </span>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" onClick={rotateRight} disabled={!shot}>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={rotateRight}
+                        disabled={!shot}
+                      >
                         <RotateCw className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
@@ -261,12 +341,18 @@ export default function Photobooth() {
                   onValueChange={(v: number[]) => setBrightness(v[0] ?? 0)}
                   disabled={!shot}
                 />
-                <p className="text-xs text-muted-foreground">-50 (มืด) → 0 (ปกติ) → +50 (สว่าง)</p>
+                <p className="text-xs text-muted-foreground">
+                  -50 (มืด) → 0 (ปกติ) → +50 (สว่าง)
+                </p>
               </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-wrap items-center gap-2">
-            <Button className="w-full md:w-auto" onClick={save} disabled={!shot}>
+            <Button
+              className="w-full md:w-auto"
+              onClick={save}
+              disabled={!shot}
+            >
               <Save className="mr-2 h-4 w-4" />
               Save
             </Button>
