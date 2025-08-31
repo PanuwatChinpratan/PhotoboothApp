@@ -1,12 +1,19 @@
+// middleware.ts
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export function middleware(request: Request) {
-  const res = NextResponse.next();
-  res.headers.set(
-    "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
-  );
-  res.headers.set("X-Content-Type-Options", "nosniff");
-  res.headers.set("X-Frame-Options", "DENY");
-  return res;
+export function middleware(req: NextRequest) {
+  const session =
+    req.cookies.get("__Secure-authjs.session-token") ??
+    req.cookies.get("authjs.session-token");
+
+  if (session?.value) return NextResponse.next();
+
+  const url = req.nextUrl.clone();
+  url.pathname = "/";                        // กลับหน้า Home
+  url.searchParams.set("flash", "login-required"); 
+
+  return NextResponse.redirect(url); 
 }
+
+export const config = { matcher: ["/gallery/:path*"] };

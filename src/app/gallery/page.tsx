@@ -1,56 +1,69 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo } from "react";
 
-interface Photo {
-  id: string;
-  caption: string | null;
-  url: string;     
-  width: number;
-  height: number;
-}
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+
+import { GalleryHeader } from "./components/GalleryHeader";
+import { GalleryControls } from "./components/GalleryControls";
+import { PhotoGrid } from "./components/PhotoGrid";
+import { PreviewDialog } from "./components/PreviewDialog";
+import { GridSkeleton } from "./components/GridSkeleton";
+import { EmptyState } from "./components/EmptyState";
+import { useGallery } from "./useGallery";
 
 export default function GalleryPage() {
-  const router = useRouter();
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const {
+    photos,
+    loading,
+    query,
+    setQuery,
+    columns,
+    setColumns,
+    selected,
+    setSelected,
+    load,
+  } = useGallery();
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/photos');
-        if (res.status === 401) {
-          router.push('/auth/login');
-          return;
-        }
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`GET /api/photos ${res.status}: ${text}`);
-        }
-        const data: { photos: Photo[]; nextCursor?: string } = await res.json();
-        setPhotos(data.photos);
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-  }, [router]);
-
+  const filtered = useMemo(() => {
+    if (!query.trim()) return photos;
+    const q = query.toLowerCase();
+    return photos.filter((p) => (p.caption || "photo").toLowerCase().includes(q));
+  }, [photos, query]);
 
   return (
-    <main className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
-      {photos.map((p) => (
-        <Image
-          key={p.id}
-          src={p.url}
-          alt={p.caption ?? 'photo'}
-          width={p.width || 300}     
-          height={p.height || 300}
-          priority
-         
-          className="rounded object-cover"
+    <div className="mx-auto w-full max-w-6xl p-4 md:p-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <GalleryHeader count={photos.length} />
+        <GalleryControls
+          loading={loading}
+          columns={columns}
+          setColumns={setColumns}
+          query={query}
+          setQuery={setQuery}
+          onReload={load}
         />
-      ))}
-    </main>
+      </div>
+
+      <Separator className="my-4" />
+
+      <Card className="border-none shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base text-muted-foreground">{filtered.length} รูป</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <GridSkeleton columns={columns} />
+          ) : filtered.length === 0 ? (
+            <EmptyState onRetry={load} />
+          ) : (
+            <PhotoGrid photos={filtered} columns={columns} onSelect={setSelected} />
+          )}
+        </CardContent>
+      </Card>
+
+      <PreviewDialog photo={selected} onClose={() => setSelected(null)} />
+    </div>
   );
 }
