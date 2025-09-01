@@ -33,7 +33,7 @@ export function useGallery() {
       }
       const data: { photos: Photo[]; nextCursor?: string } = await res.json();
       setPhotos(data.photos);
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
       toast.warning('โหลดรูปไม่สำเร็จ');
     } finally {
