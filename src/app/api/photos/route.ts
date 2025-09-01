@@ -43,12 +43,20 @@ export async function GET(req: Request) {
 
     const hasMore = photos.length > take;
     const pageItems = hasMore ? photos.slice(0, take) : photos;
-    const nextCursor = hasMore ? pageItems[pageItems.length - 1]?.id : undefined;
+    const nextCursor = hasMore
+      ? pageItems[pageItems.length - 1]?.id
+      : undefined;
 
-    return NextResponse.json({ photos: pageItems, nextCursor }, { status: 200 });
+    return NextResponse.json(
+      { photos: pageItems, nextCursor },
+      { status: 200 }
+    );
   } catch (err) {
     console.error("[GET /api/photos] error:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -98,16 +106,21 @@ export async function POST(req: Request) {
   form.append("api_key", apiKey);
   form.append("timestamp", String(timestamp));
   form.append("signature", signature);
-
-  const upload = (await fetch(
+  interface CloudinaryUploadResponse {
+    secure_url?: string;
+    url?: string;
+    width?: number;
+    height?: number;
+  }
+  const upload: CloudinaryUploadResponse = await fetch(
     `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
     {
       method: "POST",
       body: form,
     }
-  ).then((r) => r.json())) as any;
+  ).then((r) => r.json());
 
-  const created = (await prisma.photo.create({
+  const created = await prisma.photo.create({
     data: {
       caption: caption ?? null,
       url: upload.secure_url ?? upload.url,
@@ -116,8 +129,8 @@ export async function POST(req: Request) {
       meta: meta ?? undefined,
       // ✅ connect ด้วย email (unique)
       user: { connect: { email: session.user.email } },
-    } as any,
-  })) as any;
+    },
+  });
 
   return NextResponse.json(
     {
