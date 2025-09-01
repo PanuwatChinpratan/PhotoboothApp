@@ -79,14 +79,14 @@ export default function LoginPage() {
               Sign in with GitHub
             </Button>
 
-            <Button
+            {/* <Button
               variant="outline"
               className="w-full flex items-center gap-2"
               onClick={() => signIn("google", { callbackUrl: "/" })}
             >
               <Mail className="w-4 h-4" />
               Sign in with Google
-            </Button>
+            </Button> */}
           </div>
         </CardContent>
 
